@@ -150,41 +150,15 @@ function list {
             return $listObject
 }
 
-
-#Start of Main Script
-
-Write-Host "
- __   __  _______      __   __  _______  ______   _______      ______   _     _  __    _ 
-|  |_|  ||       |    |  |_|  ||       ||      | |       |    |      | | | _ | ||  |  | |
-|       ||       |    |       ||   _   ||  _    ||  _____|    |  _    || || || ||   |_| |
-|       ||       |    |       ||  | |  || | |   || |_____     | | |   ||       ||       |
-|       ||      _|    |       ||  |_|  || |_|   ||_____  |    | |_|   ||       ||  _    |
-| ||_|| ||     |_     | ||_|| ||       ||       | _____| |    |       ||   _   || | |   |
-|_|   |_||_______|    |_|   |_||_______||______| |_______|    |______| |__| |__||_|  |__|
-"
-Write-Host "`nWelcome to MC Mods Downloader!`n"
-
-Pause
-Clear-Host
-
-while ($true) {
-    $answer = ""
-    #Asks the user if they would like to put the mods in a existing directory
-    Write-Host "
- __   __  _______      __   __  _______  ______   _______      ______   _     _  __    _ 
-|  |_|  ||       |    |  |_|  ||       ||      | |       |    |      | | | _ | ||  |  | |
-|       ||       |    |       ||   _   ||  _    ||  _____|    |  _    || || || ||   |_| |
-|       ||       |    |       ||  | |  || | |   || |_____     | | |   ||       ||       |
-|       ||      _|    |       ||  |_|  || |_|   ||_____  |    | |_|   ||       ||  _    |
-| ||_|| ||     |_     | ||_|| ||       ||       | _____| |    |       ||   _   || | |   |
-|_|   |_||_______|    |_|   |_||_______||______| |_______|    |______| |__| |__||_|  |__|
-"
-
-    $answer = Read-Host "`nWould you like to put the mods in an existing folder?[Y/n]"
-
-    if ($answer -eq 'y' -or $answer -eq '') {
-        
-        $desktopPath = "$([Environment]::GetFolderPath('Desktop'))\"
+Function read-file{
+    param (
+        [string]$fPath,
+        [string]$url,
+        [string]$desk
+    )
+    
+    $t = 't'
+    while ($t -eq 't'){
         Clear-Host
         Write-Host "
  ______   _______  _______  ___   _  _______  _______  _______ 
@@ -195,8 +169,8 @@ while ($true) {
 |       ||   |___  _____| ||    _  |  |   |  |       ||   |    
 |______| |_______||_______||___| |_|  |___|  |_______||___|
 "
-        Write-Host "Choose mod folder below"
-        (Get-ChildItem -Directory -Force -Path $desktopPath)
+        Write-Host "Choose mod destination folder below`n`n"
+        (Get-ChildItem -Directory -Force -Path $desk)
         $path = Read-Host "`nEnter exact name"
         $folderPath = "$([Environment]::GetFolderPath('Desktop'))\$path"
 
@@ -205,22 +179,152 @@ while ($true) {
             Write-Host "`n'$path' folder selected`n"
             Pause
             Clear-Host
-                
+            $t = 'f'
+            break
         }
-        #Create the folder
         else {
-            Write-Host "`nSelected folder not found. Creating folder instead..."
-            New-Item -ItemType Directory -Path $folderPath
-            Write-Host "`nFolder '$path' created successfully on the desktop.`n"
+            Write-Host "Error: Invalid input. Try again..."
             Pause
             Clear-Host
         }
-        break
     }
+    
+    Write-Host "
+ _______  __   __  _______  _______  ___   _  ___   __    _  _______                   
+|       ||  | |  ||       ||       ||   | | ||   | |  |  | ||       |                  
+|       ||  |_|  ||    ___||       ||   |_| ||   | |   |_| ||    ___|                  
+|       ||       ||   |___ |       ||      _||   | |       ||   | __                   
+|      _||       ||    ___||      _||     |_ |   | |  _    ||   ||  | ___   ___   ___  
+|     |_ |   _   ||   |___ |     |_ |    _  ||   | | | |   ||   |_| ||   | |   | |   | 
+|_______||__| |__||_______||_______||___| |_||___| |_|  |__||_______||___| |___| |___|
+"
 
-    elseif ($answer -eq 'n') {
+    $content = Get-Content -Path $fPath
+    $t = @()
+    Write-Host "`n"
+    Write-Host "
+ ______   _______  _     _  __    _  ___      _______  _______  ______   ___   __    _  _______                   
+|      | |       || | _ | ||  |  | ||   |    |       ||   _   ||      | |   | |  |  | ||       |                  
+|  _    ||   _   || || || ||   |_| ||   |    |   _   ||  |_|  ||  _    ||   | |   |_| ||    ___|                  
+| | |   ||  | |  ||       ||       ||   |    |  | |  ||       || | |   ||   | |       ||   | __                   
+| |_|   ||  |_|  ||       ||  _    ||   |___ |  |_|  ||       || |_|   ||   | |  _    ||   ||  | ___   ___   ___  
+|       ||       ||   _   || | |   ||       ||       ||   _   ||       ||   | | | |   ||   |_| ||   | |   | |   | 
+|______| |_______||__| |__||_|  |__||_______||_______||__| |__||______| |___| |_|  |__||_______||___| |___| |___|
+"
+    foreach ($line in $content) {
+        #Write-Host $line
+
+        if($line[0] -match '/' -and $line[1] -match 'm' -and $line[2] -match 'o' -and $line[3] -match 'd' -and $line[4] -match '/') {
+            $line = $url + $line + "/versions?l=fabric"
+            $link = Invoke-WebRequest -Uri $line
+            $download = $link.Links | Where-Object { $_.Href -like "https://cdn.modrinth.com*" }
+            #Parse Through versionLink to find latest version of the list.
+            if ($download.Count -gt 0) {
+                $firstLink = $download[0].Href
+                #Write-Host "`n" $firstLink
+                $t += $firstLink
+            }
+        }
+        else {
+            Write-Host "`nError reading the file. Check if file contents match parameters shown.`n"
+            pause
+            Clear-Host
+        }
+    }
+            for ($i = 0; $i -lt $t.length; $i++){
+                #Write-Host "Array: "$t[$i] "Folder Path: $folderPath"
+                $jarName = [System.IO.Path]::GetFileName($t[$i])
+                $jName = Join-Path $folderPath -ChildPath $jarName
+                try {
+                    Invoke-WebRequest -Uri $t[$i] -OutFile $jName
+                    Write-Host "`"$jarName`" saved at `"$path`""
+                }
+                catch {
+                    Write-Host "Failed to download the file `"$jarName`"...`n`n"
+                }
+            }
+            Write-Host ""
+            Pause
+            Clear-Host
+}
+
+
+#Start of Main Script
+$main = 't'
+while($main -eq 't') {
+    Write-Host "
+ __   __  _______      __   __  _______  ______   _______      ______   _     _  __    _ 
+|  |_|  ||       |    |  |_|  ||       ||      | |       |    |      | | | _ | ||  |  | |
+|       ||       |    |       ||   _   ||  _    ||  _____|    |  _    || || || ||   |_| |
+|       ||       |    |       ||  | |  || | |   || |_____     | | |   ||       ||       |
+|       ||      _|    |       ||  |_|  || |_|   ||_____  |    | |_|   ||       ||  _    |
+| ||_|| ||     |_     | ||_|| ||       ||       | _____| |    |       ||   _   || | |   |
+|_|   |_||_______|    |_|   |_||_______||______| |_______|    |______| |__| |__||_|  |__|
+"
+    Write-Host "`nWelcome to MC Mods Downloader!`n"
+    Write-Host "TIP: Enter 'zzz' to exit"
+    Write-Host "`n1 - Folder Selection`n2 - File Upload`n`n"
+    $s = Read-Host "Enter"
+
+    if ($s -eq '1') {
+        #Selection code
         Clear-Host
-        Write-Host "
+        $selection = 't'
+        while ($selection -eq 't') {
+            $answer = ""
+            #Asks the user if they would like to put the mods in a existing directory
+            Write-Host "
+ _______  _______  ___      _______  _______  _______  ___   _______  __    _ 
+|       ||       ||   |    |       ||       ||       ||   | |       ||  |  | |
+|  _____||    ___||   |    |    ___||       ||_     _||   | |   _   ||   |_| |
+| |_____ |   |___ |   |    |   |___ |       |  |   |  |   | |  | |  ||       |
+|_____  ||    ___||   |___ |    ___||      _|  |   |  |   | |  |_|  ||  _    |
+ _____| ||   |___ |       ||   |___ |     |_   |   |  |   | |       || | |   |
+|_______||_______||_______||_______||_______|  |___|  |___| |_______||_|  |__|
+"
+
+            $answer = Read-Host "`nWould you like to put the mods in an existing folder?[Y/n]"
+
+            if ($answer -eq 'y' -or $answer -eq '') {
+                
+                $desktopPath = "$([Environment]::GetFolderPath('Desktop'))\"
+                Clear-Host
+                Write-Host "
+ ______   _______  _______  ___   _  _______  _______  _______ 
+|      | |       ||       ||   | | ||       ||       ||       |
+|  _    ||    ___||  _____||   |_| ||_     _||   _   ||    _  |
+| | |   ||   |___ | |_____ |      _|  |   |  |  | |  ||   |_| |
+| |_|   ||    ___||_____  ||     |_   |   |  |  |_|  ||    ___|
+|       ||   |___  _____| ||    _  |  |   |  |       ||   |    
+|______| |_______||_______||___| |_|  |___|  |_______||___|
+"
+                Write-Host "Choose mod folder below"
+                (Get-ChildItem -Directory -Force -Path $desktopPath)
+                $path = Read-Host "`nEnter exact name"
+                $folderPath = "$([Environment]::GetFolderPath('Desktop'))\$path"
+
+                #Check if the folder already exists
+                if (Test-Path -Path $folderPath) {
+                    Write-Host "`n'$path' folder selected`n"
+                    Pause
+                    Clear-Host
+                        
+                }
+                #Create the folder
+                else {
+                    Write-Host "`nSelected folder not found. Creating folder instead..."
+                    New-Item -ItemType Directory -Path $folderPath
+                    Write-Host "`nFolder '$path' created successfully on the desktop.`n"
+                    Pause
+                    Clear-Host
+                }
+                $selection = 'f'
+                break
+            }
+
+            elseif ($answer -eq 'n') {
+                Clear-Host
+                Write-Host "
  _______  ______    _______  _______  _______  ___   __    _  _______                   
 |       ||    _ |  |       ||   _   ||       ||   | |  |  | ||       |                  
 |       ||   | ||  |    ___||  |_|  ||_     _||   | |   |_| ||    ___|                  
@@ -229,34 +333,34 @@ while ($true) {
 |     |_ |   |  | ||   |___ |   _   |  |   |  |   | | | |   ||   |_| ||   | |   | |   | 
 |_______||___|  |_||_______||__| |__|  |___|  |___| |_|  |__||_______||___| |___| |___| 
 "
-        $directory = Read-Host "Creating a new directory on the desktop...`n`nEnter a directory name"
-        $folderPath = "$([Environment]::GetFolderPath('Desktop'))\$directory"
+                $directory = Read-Host "Creating a new directory on the desktop...`n`nEnter a directory name"
+                $folderPath = "$([Environment]::GetFolderPath('Desktop'))\$directory"
 
-        # Check if the folder already exists
-        if (Test-Path -Path $folderPath) {
-            Write-Host "`nAlready Exsisting Folder: Proceeding with '$directory' folder.`n"
+                # Check if the folder already exists
+                if (Test-Path -Path $folderPath) {
+                    Write-Host "`nAlready Exsisting Folder: Proceeding with '$directory' folder.`n"
+                }
+                else {
+                    # Create the folder
+                    New-Item -ItemType Directory -Path $folderPath
+                    Write-Host "Folder '$directory' created successfully on the desktop."
+                }
+                Pause
+                Clear-Host
+                $selection = 'f'
+                break
+            }
+            else {
+                Write-Host "`nError: Invalid input...`n"
+                Pause
+                Clear-Host
+            }
         }
-        else {
-            # Create the folder
-            New-Item -ItemType Directory -Path $folderPath
-            Write-Host "Folder '$directory' created successfully on the desktop."
-        }
-        Pause
-        Clear-Host
-        break
-    }
 
-    else {
-        Write-Host "`nError: Invalid input...`n"
-        Pause
-        Clear-Host
-    }
-}
+        $bool = 't'
+        while ($bool -eq 't') {
 
-$bool = 't'
-while ($bool -eq 't') {
-
-    Write-Host "
+            Write-Host "
  __   __  _______  ______   ______    ___   __    _  _______  __   __        _______  _______  __   __ 
 |  |_|  ||       ||      | |    _ |  |   | |  |  | ||       ||  | |  |      |       ||       ||  |_|  |
 |       ||   _   ||  _    ||   | ||  |   | |   |_| ||_     _||  |_|  |      |       ||   _   ||       |
@@ -265,56 +369,108 @@ while ($bool -eq 't') {
 | ||_|| ||       ||       ||   |  | ||   | | | |   |  |   |  |   _   ||   | |     |_ |       || ||_|| |
 |_|   |_||_______||______| |___|  |_||___| |_|  |__|  |___|  |__| |__||___| |_______||_______||_|   |_|
 "
-    Write-Host "Tips:`n Leave blank to show Top 10 Mods.`n If a mod won't download, try searching for it explicitly and then try again.`n Enter 'zzz' to exit program."
-    $websiteURL = "https://modrinth.com" # Replace this with the URL of the website you want to search
-    $searchWord = Read-Host "`nSearch mods"
+            Write-Host "TIPS:`n`n- Leave blank to show Top 10 Mods.`n- If a mod won't download, try searching for it explicitly and then try again.`n- Enter 'zzz' to exit program."
+            $websiteURL = "https://modrinth.com" # Replace this with the URL of the website you want to search
+            $searchWord = Read-Host "`nSearch mods"
 
-    if ($searchWord -eq 'zzz') {
-        Write-Host "`nGoodBye!`n"
-        $bool = 'f'
-        break
-
-    }
-    else {
-        #Calls the website Results function
-        $websiteResults = Search-Website -websiteURL $websiteURL -searchWord $searchWord
-        while ($true) {
-            #Calls the list function
-            $listResults = list -keyWord $websiteResults.searchResult -webURL $websiteURL -modlist $websiteResults.listMods
-            #Create a filename based on the URL
-            $fileName = [System.IO.Path]::GetFileName($listResults.fLink)
-            
-            if ($listResults.selection -eq 'zzz') {
-                Clear-Host
+            if ($searchWord -eq 'zzz') {
+                Write-Host "`nGoodBye!`n"
+                $bool = 'f'
+                $main = 'f'
                 break
+
             }
             else {
-                #Prints to screen the file name and url downloaded from
-                Write-Host "`nDownloading...`n"
-
-                # Create the file path within the folder
-                $filePath = Join-Path -Path $folderPath -ChildPath $fileName
-                # Download the file
-                try {
-                    Invoke-WebRequest -Uri $listResults.fLink -OutFile $filePath
-                    $exit = Read-Host "`"$fileName`" saved at `"$folderPath`"`n`nContinue Searching[Y/n]?" 
-
-                    if ($exit -eq 'y') {
+                #Calls the website Results function
+                $websiteResults = Search-Website -websiteURL $websiteURL -searchWord $searchWord
+                while ($true) {
+                    #Calls the list function
+                    $listResults = list -keyWord $websiteResults.searchResult -webURL $websiteURL -modlist $websiteResults.listMods
+                    #Create a filename based on the URL
+                    $fileName = [System.IO.Path]::GetFileName($listResults.fLink)
+                    
+                    if ($listResults.selection -eq 'zzz') {
                         Clear-Host
-                    }
-                    elseif ($exit -eq 'n') {
-                        Write-Host "`nGoodBye!`n"
-                        $bool = 'f'
                         break
                     }
-                    Clear-Host
-                }
-                catch {
-                    Write-Host "Failed to download the file...`n`nTip: Try searching it then downloading!`n"
-                    Pause
-                    Clear-Host
-                }
+                    else {
+                        #Prints to screen the file name and url downloaded from
+                        Write-Host "`nDownloading...`n"
+
+                        # Create the file path within the folder
+                        $filePath = Join-Path -Path $folderPath -ChildPath $fileName
+                        # Download the file
+                        try {
+                            Invoke-WebRequest -Uri $listResults.fLink -OutFile $filePath
+                            $exit = Read-Host "`"$fileName`" saved at `"$folderPath`"`n`nContinue Searching[Y/n]?" 
+
+                            if ($exit -eq 'y') {
+                                Clear-Host
+                            }
+                            elseif ($exit -eq 'n') {
+                                Write-Host "`nGoodBye!`n"
+                                $bool = 'f'
+                                $main = 'f'
+                                break
+                            }
+                            Clear-Host
+                        }
+                        catch {
+                            Write-Host "Failed to download the file...`n`nTIP: Try searching it then downloading!`n"
+                            Pause
+                            Clear-Host
+                        }
+                    }
+                }  
             }
-        }  
+        }
+    }
+    elseif ($s -eq '2') {
+        
+        $fileUpload = 't'
+        while ($fileUpload -eq 't'){
+            Clear-Host
+            Write-Host "
+ _______  ___   ___      _______    __   __  _______  ___      _______  _______  ______  
+|       ||   | |   |    |       |  |  | |  ||       ||   |    |       ||   _   ||      | 
+|    ___||   | |   |    |    ___|  |  | |  ||    _  ||   |    |   _   ||  |_|  ||  _    |
+|   |___ |   | |   |    |   |___   |  |_|  ||   |_| ||   |    |  | |  ||       || | |   |
+|    ___||   | |   |___ |    ___|  |       ||    ___||   |___ |  |_|  ||       || |_|   |
+|   |    |   | |       ||   |___   |       ||   |    |       ||       ||   _   ||       |
+|___|    |___| |_______||_______|  |_______||___|    |_______||_______||__| |__||______| 
+"
+            $dePath = "$([Environment]::GetFolderPath('Desktop'))\" 
+            Write-Host "`nPlease choose a file from your desktop you would like to upload`n`nNOTE: the format for the file MUST be:'/mod/<modName>'. Each mod must be seperated by a new line character.`n`nType the name of your file(If your file lacks '.txt' at the end, please append it to see here.)"
+            (Get-ChildItem -Force -Path $dePath -Filter "*.txt")
+            $uploadName = Read-Host "`nEnter Name"
+            $dPath = $dePath + $uploadName
+            #Write-Host $depath
+            if (Test-Path -Path $dePath) {
+                Write-Host "`n'$uploadName' File Selected`n"
+                $fileUpload = 'f'
+                Pause
+                break
+                Clear-Host
+            }
+            else {
+                Write-Host "Error: File not found"
+                Pause
+                Clear-Host
+            }
+        }
+            read-file -fPath $dPath -url $websiteURL -desk $dePath
+
+    }
+    elseif ($s -eq 'zzz')
+    {
+        Write-Host "`nGoodbye!`n"
+        $main = 'f'
+        break
+    }
+    else {
+        Write-Host "`nError: Invalid Input...`n"
+        Pause
+        Clear-Host
     }
 }
+
